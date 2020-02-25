@@ -11,15 +11,15 @@ class BotYiri(CQHttp):
 
     def __init__(self, access_token='', console_output=True):
         # pylint: disable=unused-variable
-        super(BotYiri, self).__init__(access_token=access_token, enable_http_post=False)
+        super(BotYiri, self).__init__(
+            access_token=access_token, enable_http_post=False)
         self._chatters = {}
         self._msg_preprocessors = []
         self._msg_handlers = []
         self._statuses = {}
-        
 
         self.QQID = 0
-        
+
         def get_message_type(context):
             if 'message_type' not in context:
                 if 'group_id' in context:
@@ -45,15 +45,24 @@ class BotYiri(CQHttp):
             for preprocessor, uflags in self._msg_preprocessors:
                 dotflags = {flag for flag in flags if flag[0] == '.'}
                 if (not uflags and flags - dotflags) or flags & uflags or ('.' in uflags and dotflags):
+                # 忽略掉上一行的可读性为0的代码，以下是人话版本
+                # do_action = False
+                # if uflags为空:
+                #     do_action = flags包含非.开头的内容
+                # elif flags与uflags存在交集:
+                #     do_action = True
+                # elif uflags包含'.'并且flags包含.开头的内容
+                #     do_action = True
+                # if do_action:
                     message, flags = preprocessor(message, flags, context)
             report_args = {}
+            dotflags = {flag for flag in flags if flag[0] == '.'}
             for handler, uflags in self._msg_handlers:
-                dotflags = {flag for flag in flags if flag[0] == '.'}
                 if (not uflags and flags - dotflags) or flags & uflags or ('.' in uflags and dotflags):
                     reply, action = handler(message, flags, context)
                     at_sender = (action & self.NOT_AT_SENDER) == 0
                     if action & self.SEND_MESSAGE:
-                        await self.send(context, reply, at_sender=at_sender)            
+                        await self.send(context, reply, at_sender=at_sender)
                     if action & self.KICK_OUT:
                         report_args['kick'] = True
                     if action & self.BREAK_OUT:
@@ -62,10 +71,10 @@ class BotYiri(CQHttp):
 
         @self.on_meta_event('heartbeat')
         async def check_statuses(context):
-            out_of_time = [name for name, st in self._statuses.items() if st.check_timeout()]
+            out_of_time = [name for name,
+                           st in self._statuses.items() if st.check_timeout()]
             for name in out_of_time:
                 del self._statuses[name]
-                    
 
     def msg_preprocessor(self, *args):
         '''
