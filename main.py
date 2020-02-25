@@ -90,8 +90,8 @@ def kick_sender(message: str, flags: Set[str], context: Event):
 def 萌即正义(message: str, flags: Set[str], context: Event):
     if message == '给我一份「萌即正义」！':
         if not yiri.get_status('萌即正义'):
-            yiri.add_status('萌即正义', timeout=60, user_id=context['user_id'])
-            print(f'已为{context["user_id"]}开启萌即正义。')
+            yiri.add_status('萌即正义', timeout=60, user_id=context.user_id)
+            print(f'已为{context.user_id}开启萌即正义。')
             return 'かわいいは正義！(有效期1分钟)', yiri.SEND_MESSAGE | yiri.BREAK_OUT
         else:
             reply = '同一时刻只能有一人开启「萌即正义」模式。'
@@ -127,7 +127,7 @@ def chat(message: str, flags: Set[str], context: Event):
     if message == '':
         return
 
-    id_ = str(context['user_id'])
+    id_ = str(context.user_id)
     ch = chatters.get(id_, None)
     if ch is None:
         ch = Chatter()
@@ -137,7 +137,7 @@ def chat(message: str, flags: Set[str], context: Event):
     print('{}, score={}'.format(reply, score))
 
     关闭对话 = yiri.get_status('关闭对话')
-    if 关闭对话 and'group' in flags and context.group_id == 关闭对话.group_id:
+    if 关闭对话 and context.group_id == 关闭对话.group_id:
         return
 
     if approve or ('private' in flags) or ('at_me' in flags) or (random.random() > 0.95):
