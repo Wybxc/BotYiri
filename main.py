@@ -3,13 +3,14 @@ import random
 import time
 from typing import Set
 import pymongo
-from bot import BotYiri
 from aiocqhttp.event import Event
+from bot import BotYiri
+import plugins
 from core_seq2seq.core import Chatter
 
 with open('account.txt') as f:
     account = f.read().strip()
-yiri = BotYiri(access_token=account)
+yiri = BotYiri(name='伪全能怡姐', access_token=account)
 
 # 保存消息记录到 MongoDB
 if __name__ == '__main__':
@@ -75,7 +76,7 @@ def just_at_me(message: str, flags: Set[str], context: Event):
         if random.random() < 0.9:
             return '你在叫我吗？', yiri.SEND_MESSAGE | yiri.BREAK_OUT
         else:
-            return '爱卿平身？', yiri.SEND_MESSAGE | yiri.BREAK_OUT
+            return '爱卿平身。', yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
 
 # 处理踢人
@@ -119,6 +120,8 @@ def disable_chat(message: str, flags: Set[str], context: Event):
     reply = f'已在群{context.group_id}中关闭对话，时长{message}分钟。'
     return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
+# 加载插件
+plugins.load_plugins(yiri)
 
 # 处理对话
 chatters = {}
@@ -142,7 +145,6 @@ def chat(message: str, flags: Set[str], context: Event):
 
     if approve or ('private' in flags) or ('at_me' in flags) or (random.random() > 0.95):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-
 
 if __name__ == '__main__':
     yiri.run(host='127.0.0.1', port='7700')

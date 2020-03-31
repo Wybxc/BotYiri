@@ -1,5 +1,6 @@
 from aiocqhttp import CQHttp
 from bot_status import Status
+from easy_mongo import easyMongo
 
 
 class BotYiri(CQHttp):
@@ -9,7 +10,7 @@ class BotYiri(CQHttp):
     KICK_OUT = 0b001000
     NOT_AT_SENDER = 0b010000
 
-    def __init__(self, access_token='', console_output=True):
+    def __init__(self, name='Yiri', access_token='', console_output=True):
         # pylint: disable=unused-variable
         super(BotYiri, self).__init__(
             access_token=access_token, enable_http_post=False)
@@ -18,7 +19,7 @@ class BotYiri(CQHttp):
         self._msg_handlers = []
         self._statuses = {}
 
-        self.QQID = 0
+        self._mongo = easyMongo(f'BotYiri_{name}')
 
         def get_message_type(context):
             if 'message_type' not in context:
@@ -112,3 +113,6 @@ class BotYiri(CQHttp):
 
     def get_status(self, name):
         return self._statuses.get(name, None)
+
+    def get_storage(self, name):
+        return self._mongo[name]
