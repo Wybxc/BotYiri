@@ -136,7 +136,11 @@ def chat(message: str, flags: Set[str], context: Event):
         ch = Chatter()
         chatters[id_] = ch
 
+    # April Fool!
+    message = message[::-1]
+
     reply, score, approve = ch.response(message)
+    reply = reply[::-1]
     print('{}, score={}'.format(reply, score))
 
     关闭对话 = yiri.get_status('关闭对话')
