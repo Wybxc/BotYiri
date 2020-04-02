@@ -13,6 +13,12 @@ marcos = {}
 
 def calc(s):
     # pylint: disable=eval-used
+    env = {k:v for k, v in math.__dict__.items() if '_' not in k}
+    env.update({
+        '__builtins__': {'int': int, 'float': float, 'range': range},        
+    })
+    env.update(builtins)
+    env.update(marcos)
     try:
         ast_expr = ast.parse(s, mode='eval')
     except SyntaxError as e:
@@ -21,21 +27,20 @@ def calc(s):
     for node in ast.walk(ast_expr):
         if isinstance(node, ast.Attribute):
             return 'Calculator does not support attributes!'
+    if isinstance(ast_expr.body, ast.Name):
+        try:
+            return env[ast_expr.body.id]()
+        except KeyError:
+            return f'{ast_expr.body.id} is not defined!'
+        except TypeError as e:
+            return re.sub(r'.*missing', f'{ast_expr.body.id} missing', str(e))
     code = compile(ast_expr, s, 'eval')
-    env = {k:v for k, v in math.__dict__.items() if '_' not in k}
-    env.update({
-        '__builtins__': {'int': int, 'float': float, 'range': range},        
-    })
-    env.update(builtins)
-    env.update(marcos)
     try:
         result = eval(code, env, {})
     except TypeError as e:
-        print(e)
-        return 'Name is not defined!'
+        return str(e)
     except NameError as e:
-        print(e)
-        return 'Name is not defined!'
+        return str(e)
     except CalculateError as e:
         return e.err_msg
     return result
