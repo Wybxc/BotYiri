@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
 
 @yiri.msg_preprocessor('group')
-def save_log(message: str, flags: Set[str], context: Event):
+async def save_log(message: str, flags: Set[str], context: Event):
     messageCollection = messageDB[str(context.group_id)]
     message = {
         '_id': context.message_id,
@@ -32,7 +32,7 @@ def save_log(message: str, flags: Set[str], context: Event):
 
 # 处理 @ 消息
 @yiri.msg_preprocessor('group', 'discuss')
-def at_me(message: str, flags: Set[str], context: Event):
+async def at_me(message: str, flags: Set[str], context: Event):
     at_me_code = f'[CQ:at,qq={context.self_id}]'
     if at_me_code in message:
         message = message.replace(at_me_code, '').strip()
@@ -42,13 +42,13 @@ def at_me(message: str, flags: Set[str], context: Event):
 
 # 去除 CQ码
 @yiri.msg_preprocessor()
-def remove_cq_code(message: str, flags: Set[str], context: Event):
+async def remove_cq_code(message: str, flags: Set[str], context: Event):
     return re.sub(r'\[.*?\]', '', message).strip(), flags
 
 
 # 处理.d骰子
 @yiri.msg_preprocessor()
-def dice_command(message: str, flags: Set[str], context: Event):
+async def dice_command(message: str, flags: Set[str], context: Event):
     if message[:2] == '.d':
         message = re.sub(r'[^0-9]', '', message[2:])
         if message == '':
@@ -59,7 +59,7 @@ def dice_command(message: str, flags: Set[str], context: Event):
 
 # 关闭对话机制
 @yiri.msg_preprocessor('group')
-def disable_chat_command(message: str, flags: Set[str], context: Event):
+async def disable_chat_command(message: str, flags: Set[str], context: Event):
     if message[:5] == '.关闭对话':
         message = re.sub(r'[^0-9]', '', message[2:])
         if message == '':
@@ -71,7 +71,7 @@ def disable_chat_command(message: str, flags: Set[str], context: Event):
 
 # 处理仅 @ 的情况
 @yiri.msg_handler('at_me')
-def just_at_me(message: str, flags: Set[str], context: Event):
+async def just_at_me(message: str, flags: Set[str], context: Event):
     if message == '':
         if random.random() < 0.9:
             return '你在叫我吗？', yiri.SEND_MESSAGE | yiri.BREAK_OUT
@@ -81,14 +81,14 @@ def just_at_me(message: str, flags: Set[str], context: Event):
 
 # 处理踢人
 @yiri.msg_handler('at_me')
-def kick_sender(message: str, flags: Set[str], context: Event):
+async def kick_sender(message: str, flags: Set[str], context: Event):
     if message == '请踢断我的肋骨吧！':
         return '马上安排', yiri.SEND_MESSAGE | yiri.BREAK_OUT | yiri.KICK_OUT
 
 
 # 萌即正义！
 @yiri.msg_handler('at_me')
-def 萌即正义(message: str, flags: Set[str], context: Event):
+async def 萌即正义(message: str, flags: Set[str], context: Event):
     if message == '给我一份「萌即正义」！':
         if not yiri.get_status('萌即正义'):
             yiri.add_status('萌即正义', timeout=60, user_id=context.user_id)
@@ -101,7 +101,7 @@ def 萌即正义(message: str, flags: Set[str], context: Event):
 
 # 处理.d骰子
 @yiri.msg_handler('.dice')
-def dice(message: str, flags: Set[str], context: Event):
+async def dice(message: str, flags: Set[str], context: Event):
     萌正 = yiri.get_status('萌即正义')
     if 萌正 and context.user_id == 萌正.user_id:
         reply = f'这是怡姐，不是骰子。（说完还是很诚实地摇了6点）（かわいいは正義）'
@@ -114,7 +114,7 @@ def dice(message: str, flags: Set[str], context: Event):
 
 # 关闭对话机制
 @yiri.msg_handler('.关闭对话')
-def disable_chat(message: str, flags: Set[str], context: Event):
+async def disable_chat(message: str, flags: Set[str], context: Event):
     timeout = int(message) * 60
     yiri.add_status('关闭对话', timeout=timeout, group_id=context.group_id)
     reply = f'已在群{context.group_id}中关闭对话，时长{message}分钟。'
@@ -126,7 +126,7 @@ plugins.load_plugins(yiri)
 # 处理对话
 chatters = {}
 @yiri.msg_handler()
-def chat(message: str, flags: Set[str], context: Event):
+async def chat(message: str, flags: Set[str], context: Event):
     if message == '':
         return
 

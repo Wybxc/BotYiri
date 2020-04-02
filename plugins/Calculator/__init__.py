@@ -6,6 +6,8 @@ from typing import Set
 from aiocqhttp.event import Event
 from bot import BotYiri
 
+ENABLED = True
+
 def iint(n, minimal=1):
     if isinstance(n, float):
         n = int(n)
@@ -57,7 +59,7 @@ def calc(s, arguments=None):
 def init(yiri: BotYiri):
     # pylint: disable=unused-variable
     @yiri.msg_preprocessor()
-    def calc_pre(message: str, flags: Set[str], context: Event):
+    async def calc_pre(message: str, flags: Set[str], context: Event):
         if message[:2] == '.c':
             message = message[2:].strip()
             message = message.replace('&#91;', '[').replace('&#93;', ']')
@@ -65,7 +67,7 @@ def init(yiri: BotYiri):
         return message, flags
         
     @yiri.msg_handler('.calc')
-    def calc_(message: str, flags: Set[str], context: Event):
+    async def calc_(message: str, flags: Set[str], context: Event):
         reply = str(calc(message))
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT

@@ -29,6 +29,8 @@ class BotYiri(CQHttp):
                     return 'discuss'
                 elif 'user_id' in context:
                     return 'private'
+                else:
+                    return 'unknown'
             else:
                 return context['message_type']
 
@@ -55,12 +57,12 @@ class BotYiri(CQHttp):
                 # elif uflags包含'.'并且flags包含.开头的内容
                 #     do_action = True
                 # if do_action:
-                    message, flags = preprocessor(message, flags, context)
+                    message, flags = await preprocessor(message, flags, context)
             report_args = {}
             dotflags = {flag for flag in flags if flag[0] == '.'}
             for handler, uflags in self._msg_handlers:
                 if (not uflags and flags - dotflags) or flags & uflags or ('.' in uflags and dotflags):
-                    reply, action = handler(message, flags, context)
+                    reply, action = await handler(message, flags, context)
                     at_sender = (action & self.NOT_AT_SENDER) == 0
                     if action & self.SEND_MESSAGE:
                         await self.send(context, reply, at_sender=at_sender)
@@ -85,8 +87,8 @@ class BotYiri(CQHttp):
         返回两个参数：修改后的消息（字符串），修改后的处理标志（字符串set）
         '''
         def decorator(func):
-            def decorated(message, flags, context):
-                result = func(message, flags, context)
+            async def decorated(message, flags, context):
+                result = await func(message, flags, context)
                 return result if result is not None else (message, flags)
             self._msg_preprocessors.append((decorated, set(args)))
             return decorated
@@ -100,8 +102,8 @@ class BotYiri(CQHttp):
         返回两个参数：回复信息（字符串），动作信息（整数）
         '''
         def decorator(func):
-            def decorated(message, flags, context):
-                result = func(message, flags, context)
+            async def decorated(message, flags, context):
+                result = await func(message, flags, context)
                 return result if result is not None else ('', self.NOTHING)
             self._msg_handlers.append((decorated, set(args)))
             return decorated
