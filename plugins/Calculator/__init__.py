@@ -5,47 +5,29 @@ import re
 from typing import Set
 from aiocqhttp.event import Event
 from bot import BotYiri
+from .functions import builtins, CalculateError
 
 ENABLED = True
 
-def iint(n, minimal=1):
-    if isinstance(n, float):
-        n = int(n)
-    if n <= minimal or not isinstance(n, int):
-        n = minimal
-    return n
+marcos = {}
 
-def dice(n):
-    n = iint(n)
-    return random.randint(1, n)
-
-def dicem(count, n):
-    result = 0
-    for _ in range(iint(count)):
-        result += dice(n)
-    return result
-
-
-def calc(s, arguments=None):
+def calc(s):
     # pylint: disable=eval-used
     try:
         ast_expr = ast.parse(s, mode='eval')
-    except SyntaxError:
+    except SyntaxError as e:
+        print(e)
         return 'Syntax error!'
     for node in ast.walk(ast_expr):
         if isinstance(node, ast.Attribute):
             return 'Calculator does not support attributes!'
-    code = compile(ast_expr, '<string>', 'eval')
+    code = compile(ast_expr, s, 'eval')
     env = {k:v for k, v in math.__dict__.items() if '_' not in k}
     env.update({
-        '__builtins__': {'int': int, 'float': float, 'range': range},
-        'dice': dice, 
-        'd': dice,
-        'dicem': dicem,
-        'dm': dicem,
+        '__builtins__': {'int': int, 'float': float, 'range': range},        
     })
-    if isinstance(arguments, dict):
-        env.update(arguments)
+    env.update(builtins)
+    env.update(marcos)
     try:
         result = eval(code, env, {})
     except TypeError as e:
@@ -53,8 +35,22 @@ def calc(s, arguments=None):
         return 'Name is not defined!'
     except NameError as e:
         print(e)
-        return 'Name is not defined!'   
+        return 'Name is not defined!'
+    except CalculateError as e:
+        return e.err_msg
     return result
+
+def parse_xdef(slices):
+    if not slices:
+        return None, None
+    # 匹配宏名称
+    match = re.match(r'^[^\W0-9]\w+', slices[0])
+    if not match:
+        return None, None
+    name = match.group()
+    slices[0] = slices[0][len(name):]    
+    code = 'lambda ' + ' '.join(slices).strip().replace(':', ':(', 1) +')'
+    return name, code
 
 def init(yiri: BotYiri):
     # pylint: disable=unused-variable
@@ -72,23 +68,69 @@ def init(yiri: BotYiri):
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
-    # @yiri.msg_preprocessor()
-    # def xdef_pre(message: str, flags: Set[str], context: Event):
-    #     if message[:2] == '.x':
-    #         message = message[2:].strip()
-    #         message = message.replace('&#91;', '[').replace('&#93;', ']')
-    #     return message, flags
+    @yiri.msg_preprocessor()
+    async def xdef_pre(message: str, flags: Set[str], context: Event):
+        if message[:2] == '.x':
+            if message[2] == 'r':
+                flags.add('.xdef_remove')
+                message = message[3:].strip()
+            elif message[2] == 'l':
+                flags.add('.xdef_list')
+                message = message[3:].strip()
+            else:
+                flags.add('.xdef')
+                message = message[2:].strip()
+            message = message.replace('&#91;', '[').replace('&#93;', ']')            
+        return message, flags
+    
+    storage = yiri.get_storage('xdef')
+    for name, code in storage.items():
+        func = calc(code)
+        marcos[name] = func
+        storage[name] = code
+
+    @yiri.msg_handler('.xdef')
+    async def xdef(message: str, flags: Set[str], context: Event):
+        slices = message.split(' ')
+        storage = yiri.get_storage('xdef')
+        name, code = parse_xdef(slices)
+        if not name:
+            reply = 'Syntax Error!'
+            print(reply)
+            return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
+        func = calc(code)
+        if isinstance(func, str):
+            reply = func
+            print(reply)
+            return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
+        marcos[name] = func
+        storage[name] = code
+        reply = f'已添加宏定义{name} := {code}'
+        print(reply)
+        return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
+
+    @yiri.msg_handler('.xdef_remove')
+    async def xdef_remove(message: str, flags: Set[str], context: Event):
+        name = message
+        storage = yiri.get_storage('xdef')        
+        if storage.remove(name):
+            reply = f'已移除宏定义{name}'
+            marcos.pop(name, None)
+        else:
+            reply = f'未找到宏定义{name}'
+        print(reply)
+        return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
+
+    @yiri.msg_handler('.xdef_list')
+    async def xdef_list(message: str, flags: Set[str], context: Event):
+        reply = '当前已有的宏定义：\n'
+        storage = yiri.get_storage('xdef')
+        for name, code in storage.items():
+            reply += f'{name} := {code}\n'
+        reply = reply.strip()
+        print(reply)
+        return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
         
-    # @yiri.msg_handler('.xdef')
-    # def xdef(message: str, flags: Set[str], context: Event):
-    #     slices = message.split(' ')
-    #     name = slices[0]
-    #     code = ' '.join(slices[1:]).replace('&#91;', '[').replace('&#93;', ']')
-    #     storage = yiri.get_storage('xdef')
-    #     storage[name] = 
-    #     reply = f'已添加宏定义{name} := {code}'
-    #     print(reply)
-    #     return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
         
         
