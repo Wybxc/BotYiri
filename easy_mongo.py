@@ -20,6 +20,15 @@ class mongoCollectionWrapper():
         self._collection.find_one_and_delete({'name': index})
         return self._dict.pop(index, None)        
 
+    def remove_by_value(self, value):
+        node = self._collection.find_one_and_delete({'value': value})
+        names = []
+        while node:
+            self._dict.pop(node['name'], None)
+            names.append(node['name'])
+            node = self._collection.find_one_and_delete({'value': value})
+        return names
+
     def keys(self):
         return self._dict.keys()
 

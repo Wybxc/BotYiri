@@ -15,7 +15,7 @@ def calc(s):
     # pylint: disable=eval-used
     env = {k:v for k, v in math.__dict__.items() if '_' not in k}
     env.update({
-        '__builtins__': {'int': int, 'float': float, 'range': range},        
+        '__builtins__': {'int': int, 'float': float, 'str': str, 'sum': sum, 'range': range},        
     })
     env.update(builtins)
     env.update(marcos)
@@ -64,6 +64,7 @@ def init(yiri: BotYiri):
         if message[:2] == '.c':
             message = message[2:].strip()
             message = message.replace('&#91;', '[').replace('&#93;', ']')
+            message = message.replace('\n', '').replace('\r', '')
             flags.add('.calc')
         return message, flags
         
@@ -82,17 +83,26 @@ def init(yiri: BotYiri):
             elif message[2] == 'l':
                 flags.add('.xdef_list')
                 message = message[3:].strip()
+            elif message[2] == 'a':
+                if message[3] == 'r':
+                    flags.add('.xdef_alias_remove')
+                    message = message[4:].strip()
+                else:
+                    flags.add('.xdef_alias')
+                    message = message[3:].strip()
             else:
                 flags.add('.xdef')
                 message = message[2:].strip()
-            message = message.replace('&#91;', '[').replace('&#93;', ']')            
+            message = message.replace('&#91;', '[').replace('&#93;', ']')
+            message = message.replace('\n', '').replace('\r', '')
         return message, flags
     
-    storage = yiri.get_storage('xdef')
-    for name, code in storage.items():
+    for name, code in yiri.get_storage('xdef').items():
         func = calc(code)
         marcos[name] = func
-        storage[name] = code
+
+    for alias, name in yiri.get_storage('xdef_alias').items():        
+        marcos[alias] = marcos[name]
 
     @yiri.msg_handler('.xdef')
     async def xdef(message: str, flags: Set[str], context: Event):
@@ -116,10 +126,15 @@ def init(yiri: BotYiri):
 
     @yiri.msg_handler('.xdef_remove')
     async def xdef_remove(message: str, flags: Set[str], context: Event):
-        name = message
-        storage = yiri.get_storage('xdef')        
-        if storage.remove(name):
+        name = message       
+        if yiri.get_storage('xdef').remove(name):            
             reply = f'已移除宏定义{name}'
+            alias = yiri.get_storage('xdef_alias').remove_by_value(name)
+            if alias:
+                for al in alias:
+                    marcos.pop(al, None)
+                alias = ', '.join(alias)
+                reply += f'，及其别名{alias}'
             marcos.pop(name, None)
         else:
             reply = f'未找到宏定义{name}'
@@ -128,14 +143,35 @@ def init(yiri: BotYiri):
 
     @yiri.msg_handler('.xdef_list')
     async def xdef_list(message: str, flags: Set[str], context: Event):
-        reply = '当前已有的宏定义：\n'
-        storage = yiri.get_storage('xdef')
-        for name, code in storage.items():
-            reply += f'{name} := {code}\n'
+        reply = '当前已有的宏定义：\n'        
+        for name, code in yiri.get_storage('xdef').items():
+            reply += f'{name} := {code}\n\n'
+        reply += '当前定义的宏别名：\n'
+        for alias, name in yiri.get_storage('xdef_alias').items():
+            reply += f'{alias} = {name}\n\n'
         reply = reply.strip()
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
         
+    @yiri.msg_handler('.xdef_alias')
+    async def xdef_alias(message: str, flags: Set[str], context: Event):        
+        storage = yiri.get_storage('xdef_alias')
+        alias, name = message.split(' ')[:2]
+        storage[alias] = name
+        marcos[alias] = marcos[name]
+        reply = f'已定义别名{alias} = {name}'
+        print(reply)
+        return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
-        
+    @yiri.msg_handler('.xdef_alias_remove')
+    async def xdef_alias_remove(message: str, flags: Set[str], context: Event):
+        name = message
+        storage = yiri.get_storage('xdef_alias')        
+        if storage.remove(name):
+            reply = f'已移除宏别名{name}'
+            marcos.pop(name, None)
+        else:
+            reply = f'未找到宏别名{name}'
+        print(reply)
+        return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
         

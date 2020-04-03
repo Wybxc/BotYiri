@@ -25,14 +25,6 @@ def dice(n):
     return random.randint(1, n)
 
 def dicem(count, n):
-    result = 0
-    if count > 100:
-        raise CalculateError('数量过大！')
-    for _ in range(iint(count)):
-        result += dice(n)
-    return result
-
-def dicemf(count, n):
     if count > 100:
         raise CalculateError('数量过大！')
     dices = [dice(n) for _ in range(iint(count))]
@@ -44,24 +36,29 @@ def rand(*args):
     elif len(args) == 1:
         return random.random() * ifloat(args[0])
     else:
-        x = ifloat(args[0])
-        y = ifloat(args[1])
-        return random.random() * (y - x) + x
+        return random.uniform(*args)
 
 def randn(mu=0.5, sigma=0.5):
     mu = ifloat(mu)
     sigma = ifloat(sigma)
     return random.normalvariate(mu, sigma)
 
+def join(split, l):
+    l = map(str, l)
+    return split.join(l)
+
+def apply(funcs, params):
+    return [[func(param) for param in params] for func in funcs]
+
 builtins = {
     'dice': dice, 
     'd': dice,
     'dicem': dicem,
     'dm': dicem,
-    'dicemf': dicemf,
-    'dmf': dicemf,
     'rand': rand,
     'r': rand,
     'randn': randn,
-    'rn': randn
+    'rn': randn,
+    'join': join,
+    'apply': apply
 }    
