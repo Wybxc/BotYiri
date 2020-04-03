@@ -47,9 +47,6 @@ def join(split, l):
     l = map(str, l)
     return split.join(l)
 
-def apply(funcs, params):
-    return [[func(param) for param in params] for func in funcs]
-
 builtins = {
     'dice': dice, 
     'd': dice,
@@ -60,5 +57,4 @@ builtins = {
     'randn': randn,
     'rn': randn,
     'join': join,
-    'apply': apply
 }    

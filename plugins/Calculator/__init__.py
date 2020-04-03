@@ -11,13 +11,61 @@ ENABLED = True
 
 marcos = {}
 
+env = {k: v for k, v in math.__dict__.items() if '_' not in k}
+env['pow'] = None # math.pow 不如内置的 pow 高级
+env.update({
+    '__builtins__': {
+        'abs': abs,
+        'all': all,
+        'any': any,
+        'ascii': ascii,
+        'bin': bin,
+        'bool': bool,
+        'bytearray': bytearray,
+        'bytes': bytes,
+        'callable': callable,
+        'chr': chr,
+        'complex': complex,
+        'dict': dict,
+        'dir': dir,
+        'divmod': divmod,
+        'enumerate': enumerate,
+        'filter': filter,
+        'float': float,
+        'format': format,
+        'frozenset': frozenset,
+        'hash': hash,
+        'hex': hex,
+        'int': int,
+        'isinstance': isinstance,
+        'issubclass': issubclass,
+        'iter': iter,
+        'len': len,
+        'list': list,
+        'map': map,
+        'max': max,
+        'min': min,
+        'next': next,
+        'oct': oct,
+        'ord': ord,
+        'pow': pow,
+        'range': range,
+        'repr': repr,
+        'reversed': reversed,
+        'round': round,
+        'set': set,
+        'slice': slice,
+        'sorted': sorted,
+        'str': str,
+        'sum': sum,
+        'tuple': tuple,
+        'zip': zip
+    },
+})
+env.update(builtins)
+
 def calc(s):
     # pylint: disable=eval-used
-    env = {k:v for k, v in math.__dict__.items() if '_' not in k}
-    env.update({
-        '__builtins__': {'int': int, 'float': float, 'str': str, 'sum': sum, 'range': range},        
-    })
-    env.update(builtins)
     env.update(marcos)
     try:
         ast_expr = ast.parse(s, mode='eval')
@@ -29,7 +77,11 @@ def calc(s):
             return 'Calculator does not support attributes!'
     if isinstance(ast_expr.body, ast.Name):
         try:
-            return env[ast_expr.body.id]()
+            marco = env[ast_expr.body.id]
+            if callable(marco):
+                return marco()
+            else:
+                return marco
         except KeyError:
             return f'{ast_expr.body.id} is not defined!'
         except TypeError as e:
@@ -45,6 +97,7 @@ def calc(s):
         return e.err_msg
     return result
 
+
 def parse_xdef(slices):
     if not slices:
         return None, None
@@ -53,9 +106,14 @@ def parse_xdef(slices):
     if not match:
         return None, None
     name = match.group()
-    slices[0] = slices[0][len(name):]    
-    code = 'lambda ' + ' '.join(slices).strip().replace(':', ':(', 1) +')'
+    slices[0] = slices[0][len(name):]
+    code = ' '.join(slices).strip()
+    if code[0] != '=':
+        code = 'lambda ' + code.replace(':', ':(', 1) + ')'
+    else:
+        code = code[1:]
     return name, code
+
 
 def init(yiri: BotYiri):
     # pylint: disable=unused-variable
@@ -67,7 +125,7 @@ def init(yiri: BotYiri):
             message = message.replace('\n', ' ').replace('\r', ' ')
             flags.add('.calc')
         return message, flags
-        
+
     @yiri.msg_handler('.calc')
     async def calc_(message: str, flags: Set[str], context: Event):
         reply = str(calc(message))
@@ -89,19 +147,19 @@ def init(yiri: BotYiri):
                     message = message[4:].strip()
                 else:
                     flags.add('.xdef_alias')
-                    message = message[3:].strip()
+                    message = message[3:].strip() 
             else:
                 flags.add('.xdef')
                 message = message[2:].strip()
             message = message.replace('&#91;', '[').replace('&#93;', ']')
             message = message.replace('\n', ' ').replace('\r', ' ')
         return message, flags
-    
+
     for name, code in yiri.get_storage('xdef').items():
         func = calc(code)
         marcos[name] = func
 
-    for alias, name in yiri.get_storage('xdef_alias').items():        
+    for alias, name in yiri.get_storage('xdef_alias').items():
         marcos[alias] = marcos[name]
 
     @yiri.msg_handler('.xdef')
@@ -126,8 +184,8 @@ def init(yiri: BotYiri):
 
     @yiri.msg_handler('.xdef_remove')
     async def xdef_remove(message: str, flags: Set[str], context: Event):
-        name = message       
-        if yiri.get_storage('xdef').remove(name):            
+        name = message
+        if yiri.get_storage('xdef').remove(name):
             reply = f'已移除宏定义{name}'
             alias = yiri.get_storage('xdef_alias').remove_by_value(name)
             if alias:
@@ -143,7 +201,7 @@ def init(yiri: BotYiri):
 
     @yiri.msg_handler('.xdef_list')
     async def xdef_list(message: str, flags: Set[str], context: Event):
-        reply = '当前已有的宏定义：\n'        
+        reply = '当前已有的宏定义：\n'
         for name, code in yiri.get_storage('xdef').items():
             reply += f'{name} := {code}\n\n'
         reply += '当前定义的宏别名：\n'
@@ -152,9 +210,9 @@ def init(yiri: BotYiri):
         reply = reply.strip()
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-        
+
     @yiri.msg_handler('.xdef_alias')
-    async def xdef_alias(message: str, flags: Set[str], context: Event):        
+    async def xdef_alias(message: str, flags: Set[str], context: Event):
         storage = yiri.get_storage('xdef_alias')
         alias, name = message.split(' ')[:2]
         storage[alias] = name
@@ -166,7 +224,7 @@ def init(yiri: BotYiri):
     @yiri.msg_handler('.xdef_alias_remove')
     async def xdef_alias_remove(message: str, flags: Set[str], context: Event):
         name = message
-        storage = yiri.get_storage('xdef_alias')        
+        storage = yiri.get_storage('xdef_alias')
         if storage.remove(name):
             reply = f'已移除宏别名{name}'
             marcos.pop(name, None)
@@ -174,4 +232,3 @@ def init(yiri: BotYiri):
             reply = f'未找到宏别名{name}'
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-        
