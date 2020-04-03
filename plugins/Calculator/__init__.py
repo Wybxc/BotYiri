@@ -49,7 +49,7 @@ def parse_xdef(slices):
     if not slices:
         return None, None
     # 匹配宏名称
-    match = re.match(r'^[^\W0-9]\w+', slices[0])
+    match = re.match(r'^[^\W0-9]\w*', slices[0])
     if not match:
         return None, None
     name = match.group()
