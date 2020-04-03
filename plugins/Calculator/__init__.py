@@ -64,7 +64,7 @@ def init(yiri: BotYiri):
         if message[:2] == '.c':
             message = message[2:].strip()
             message = message.replace('&#91;', '[').replace('&#93;', ']')
-            message = message.replace('\n', '').replace('\r', '')
+            message = message.replace('\n', ' ').replace('\r', ' ')
             flags.add('.calc')
         return message, flags
         
@@ -94,7 +94,7 @@ def init(yiri: BotYiri):
                 flags.add('.xdef')
                 message = message[2:].strip()
             message = message.replace('&#91;', '[').replace('&#93;', ']')
-            message = message.replace('\n', '').replace('\r', '')
+            message = message.replace('\n', ' ').replace('\r', ' ')
         return message, flags
     
     for name, code in yiri.get_storage('xdef').items():
