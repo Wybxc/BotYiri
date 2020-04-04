@@ -2,7 +2,9 @@ import ast
 import math
 import random
 import re
+import functools
 from typing import Set
+from multiprocess import Process, Manager
 from aiocqhttp.event import Event
 from bot import BotYiri
 from .functions import builtins, CalculateError
@@ -64,8 +66,29 @@ env.update({
 })
 env.update(builtins)
 
+def multiprocess_eval(code, globals_, locals_, result):
+    # pylint: disable=eval-used, broad-except
+    result['result'] = None
+    result['error'] = None
+    try:
+        result['result'] = eval(code, globals_, locals_)
+    except Exception as e:
+        result['error'] = e
+
+def timeout_eval(code, globals_, locals_, timeout=2):
+    result = Manager().dict()
+    p = Process(target=multiprocess_eval, args=(code, globals_, locals_, result))
+    p.start()
+    p.join(timeout=timeout)
+    if p.is_alive():
+        p.terminate()
+        raise TimeoutError('计算超时！')
+    if result['error']:
+        raise result['error']
+    return result['result']
+
+
 def calc(s):
-    # pylint: disable=eval-used
     env.update(marcos)
     try:
         ast_expr = ast.parse(s, mode='eval')
@@ -86,9 +109,8 @@ def calc(s):
             return f'{ast_expr.body.id} is not defined!'
         except TypeError as e:
             return re.sub(r'.*missing', f'{ast_expr.body.id} missing', str(e))
-    code = compile(ast_expr, s, 'eval')
     try:
-        result = eval(code, env, {})
+        result = timeout_eval(s, env, {}, timeout=5)
     except TypeError as e:
         return str(e)
     except NameError as e:
