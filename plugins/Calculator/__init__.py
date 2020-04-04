@@ -103,28 +103,8 @@ def restart_eval_process():
     eval_process.deamon = True
     eval_process.start() 
 
-# def multiprocess_eval(code, globals_, locals_, result):    
-#     result['result'] = None
-#     result['error'] = None
-#     try:
-#         result['result'] = eval(code, globals_, locals_)
-#     except Exception as e:
-#         result['error'] = e
-
 
 def timeout_eval(code, globals_, locals_, timeout=2):
-    # result = Manager().dict()
-    # # pylint: disable=not-callable
-    # p = Process(target=multiprocess_eval, args=(code, globals_,
-    #                                             locals_, result))  
-    # p.start()
-    # p.join(timeout=timeout)``
-    # if p.is_alive():
-    #     p.terminate()
-    #     raise TimeoutError('计算超时！')
-    # if result['error']:
-    #     raise result['error']
-    # return result['result']
     if not eval_process:
         restart_eval_process()
     pipe_main.send(code)
