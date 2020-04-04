@@ -1,4 +1,5 @@
 import re
+import sys
 import random
 import time
 from typing import Set
@@ -9,9 +10,13 @@ import plugins
 from core_seq2seq.core import Chatter
 
 if __name__ == '__main__':
-    with open('account.txt') as f:
-        account = f.read().strip()
-    yiri = BotYiri(name='伪全能怡姐', access_token=account)
+    TEST = len(sys.argv) >= 2 and sys.argv[1] == '--test'
+    if not TEST:
+        with open('account.txt') as f:
+            account = f.read().strip()
+        yiri = BotYiri(name='伪全能怡姐', access_token=account)
+    else:
+        yiri = BotYiri(name='怡姐测试版', access_token='test')
 
     # 保存消息记录到 MongoDB
     if __name__ == '__main__':
@@ -147,4 +152,7 @@ if __name__ == '__main__':
         if approve or ('private' in flags) or ('at_me' in flags) or (random.random() > 0.95):
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
-    yiri.run(host='127.0.0.1', port='7700')
+    if not TEST:
+        yiri.run(host='127.0.0.1', port='7700')
+    else:
+        yiri.run(host='127.0.0.1', port='7701')
