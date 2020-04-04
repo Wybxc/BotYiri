@@ -4,7 +4,7 @@ import random
 import re
 import functools
 from typing import Set
-from multiprocess import Process, Manager
+from multiprocess import Process, Manager  # pylint: disable=no-name-in-module
 from aiocqhttp.event import Event
 from bot import BotYiri
 from .functions import builtins, CalculateError
@@ -14,7 +14,7 @@ ENABLED = True
 marcos = {}
 
 env = {k: v for k, v in math.__dict__.items() if '_' not in k}
-env['pow'] = None # math.pow 不如内置的 pow 高级
+env['pow'] = None  # math.pow 不如内置的 pow 高级
 env.update({
     '__builtins__': {
         'abs': abs,
@@ -66,6 +66,7 @@ env.update({
 })
 env.update(builtins)
 
+
 def multiprocess_eval(code, globals_, locals_, result):
     # pylint: disable=eval-used, broad-except
     result['result'] = None
@@ -75,9 +76,12 @@ def multiprocess_eval(code, globals_, locals_, result):
     except Exception as e:
         result['error'] = e
 
+
 def timeout_eval(code, globals_, locals_, timeout=2):
     result = Manager().dict()
-    p = Process(target=multiprocess_eval, args=(code, globals_, locals_, result))
+    # pylint: disable=not-callable
+    p = Process(target=multiprocess_eval, args=(code, globals_,
+                                                locals_, result))  
     p.start()
     p.join(timeout=timeout)
     if p.is_alive():
@@ -171,7 +175,7 @@ def init(yiri: BotYiri):
                     message = message[4:].strip()
                 else:
                     flags.add('.xdef_alias')
-                    message = message[3:].strip() 
+                    message = message[3:].strip()
             else:
                 flags.add('.xdef')
                 message = message[2:].strip()
