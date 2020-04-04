@@ -117,6 +117,8 @@ def calc(s):
         return str(e)
     except CalculateError as e:
         return e.err_msg
+    except TimeoutError as e:
+        return str(e)
     return result
 
 
