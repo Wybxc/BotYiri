@@ -7,7 +7,7 @@ import pymongo
 from aiocqhttp.event import Event
 from bot import BotYiri
 import plugins
-from core_seq2seq.core import Chatter
+from core_seq2seq.core import init, Chatter
 
 if __name__ == '__main__':
     arg = argparse.ArgumentParser()
@@ -18,10 +18,8 @@ if __name__ == '__main__':
     yiri = BotYiri(name=args.name, access_token=args.token)
 
     # 保存消息记录到 MongoDB
-    if __name__ == '__main__':
-        mongoClient = pymongo.MongoClient('mongodb://localhost:27017/')
-        messageDB = mongoClient['QQ_Messages']
-
+    mongoClient = pymongo.MongoClient('mongodb://localhost:27017/')
+    messageDB = mongoClient['QQ_Messages']
 
     @yiri.msg_preprocessor('group')
     async def save_log(message: str, flags: Set[str], context: Event):
@@ -129,6 +127,7 @@ if __name__ == '__main__':
     plugins.load_plugins(yiri)
 
     # 处理对话
+    init()
     chatters = {}
     @yiri.msg_handler()
     async def chat(message: str, flags: Set[str], context: Event):
