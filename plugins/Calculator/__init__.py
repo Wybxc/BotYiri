@@ -12,7 +12,7 @@ from .functions import builtin_marcos, CalculateError
 
 ENABLED = True
 
-TIMEOUT = 1.75
+TIMEOUT = 2
 
 env = None
 
@@ -23,10 +23,9 @@ eval_process = None
 pipe_main, pipe_eval = None, None
 
 
-def set_eval_environment():
-    global env, regexes, pipe_main, pipe_eval
-    env = {'__builtins__': {k: v for k, v in math.__dict__.items() if '_' not in k}}    
-    env['__builtins__'].update({        
+def get_default_environment():
+    m_env = {'__builtins__': {k: v for k, v in math.__dict__.items() if '_' not in k}}    
+    m_env['__builtins__'].update({        
         'abs': abs,
         'all': all,
         'any': any,
@@ -73,29 +72,44 @@ def set_eval_environment():
         'tuple': tuple,
         'zip': zip,        
     })
-    env.update(builtin_marcos)
-    env = Manager().dict(env)
-    regexes = {}
+    m_env.update(builtin_marcos)
+    return m_env
+
+def set_eval_environment():
+    global env, regexes, pipe_main, pipe_eval
     pipe_main, pipe_eval = Pipe(duplex=True)
+    restart_eval_process()
+    env = get_default_environment()
+    timeout_eval('update', env)
+    regexes = {}    
 
 
 class EvalProcess(Process):  # pylint: disable=inherit-non-class
-    def __init__(self, pipe, environment):
+    def __init__(self, pipe):
         super(EvalProcess, self).__init__()
         self.pipe = pipe
-        self.environment = environment
+        self.environment = {}
 
     def run(self):
         # pylint: disable=eval-used, broad-except
         while True:
-            code = self.pipe.recv()
+            op, code = self.pipe.recv()
             result, error = None, None
             try:
-                if isinstance(code, str):
-                    result = eval(code, dict(self.environment), {})
-                else:
+                if op == 'eval':
+                    result = eval(code, self.environment, {})                    
+                elif op == 'call':
                     name, args = code
                     result = self.environment[name](*args)
+                elif op == 'update':
+                    self.environment.update(code)
+                    result = 0
+                elif op == 'set':
+                    name, value = code
+                    self.environment[name] = value
+                    result = 0
+                elif op == 'pop':
+                    result = self.environment.pop(code, None)
             except Exception as e:
                 error = e
             self.pipe.send((result, error))
@@ -110,16 +124,16 @@ def restart_eval_process():
         pipe_main, pipe_eval = Pipe(duplex=True)
         print('超时，重启计算进程中……')
     # pylint: disable=not-callable, attribute-defined-outside-init
-    eval_process = EvalProcess(pipe_eval, env)
+    eval_process = EvalProcess(pipe_eval)
     eval_process.deamon = True
     eval_process.start()
 
 
-def timeout_eval(code: Union[str, tuple], timeout=2):
+def timeout_eval(op: str, code: Union[str, tuple, dict]):
     if not eval_process:
         restart_eval_process()
-    pipe_main.send(code)
-    if pipe_main.poll(timeout=timeout):
+    pipe_main.send((op, code))
+    if pipe_main.poll(timeout=TIMEOUT):
         result, error = pipe_main.recv()
     else:
         restart_eval_process()
@@ -129,7 +143,7 @@ def timeout_eval(code: Union[str, tuple], timeout=2):
     return result
 
 
-def calc(s, timeout=2):
+def calc(s):
     start_time = time.time()
     try:
         ast_expr = ast.parse(s, mode='eval')
@@ -143,7 +157,7 @@ def calc(s, timeout=2):
         try:
             marco = env[ast_expr.body.id]
             if callable(marco):
-                return timeout_eval((ast_expr.body.id, ()), timeout=timeout)
+                return timeout_eval('call', (ast_expr.body.id, ()))
             else:
                 return marco
         except KeyError:
@@ -151,7 +165,7 @@ def calc(s, timeout=2):
         except TypeError as e:
             return re.sub(r'.*missing', f'{ast_expr.body.id} missing', str(e))
     try:
-        result = timeout_eval(s, timeout=timeout)
+        result = timeout_eval('eval', s)
     except TypeError as e:
         return str(e)
     except NameError as e:
@@ -244,21 +258,26 @@ def init_calc(yiri: BotYiri):
 
     @yiri.msg_handler('.calc')
     async def calc_(message: str, flags: Set[str], context: Event):
-        reply = str(calc(message, timeout=TIMEOUT))
+        reply = str(calc(message))
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
 def init_xdef(yiri: BotYiri):
     # pylint: disable=unused-variable
-    marcos = {}
+    global TIMEOUT
+    m_TIMEOUT = TIMEOUT
+    TIMEOUT = 60
     for name, code in yiri.get_storage('xdef').items():
-        func = calc(code, timeout=TIMEOUT)
-        marcos[name] = func
+        func = calc(code)
+        timeout_eval('set', (name, func))
+        env[name] = func        
 
+    marcos_alias = {}
     for alias, name in yiri.get_storage('xdef_alias').items():
-        marcos[alias] = marcos[name]
-
-    env.update(marcos)
+        marcos_alias[alias] = env[name]
+    env.update(marcos_alias)
+    timeout_eval('update', marcos_alias)
+    TIMEOUT = m_TIMEOUT
 
     @yiri.msg_preprocessor()
     async def xdef_pre(message: str, flags: Set[str], context: Event):
@@ -292,11 +311,14 @@ def init_xdef(yiri: BotYiri):
             reply = '语法错误！'
             print(reply)
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-        func = calc(code, timeout=TIMEOUT)
+        if name in builtin_marcos.keys():
+            reply = f'不能覆盖定义{name}！'
+        func = calc(code)
         if isinstance(func, str):
             reply = func
             print(reply)
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
+        timeout_eval('set', (name, func))
         env[name] = func
         storage[name] = code
         reply = f'已添加宏定义{name} := {code}'
@@ -311,7 +333,8 @@ def init_xdef(yiri: BotYiri):
             alias = yiri.get_storage('xdef_alias').remove_by_value(name)
             if alias:
                 for al in alias:
-                    env.pop(al, None)
+                    timeout_eval('pop', al)
+                    env.pop(al, None)                    
                 alias = ', '.join(alias)
                 reply += f'，及其别名{alias}'
             red = yiri.get_storage('redef').remove(name)
@@ -320,6 +343,7 @@ def init_xdef(yiri: BotYiri):
                 alias = ', '.join(alias)
                 reply += f'，及其模板'
             reply += '。'
+            timeout_eval('pop', name)
             env.pop(name, None)
         else:
             reply = f'未找到宏定义{name}！'
@@ -341,9 +365,10 @@ def init_xdef(yiri: BotYiri):
     @yiri.msg_handler('.xdef_alias')
     async def xdef_alias(message: str, flags: Set[str], context: Event):
         storage = yiri.get_storage('xdef_alias')
-        alias, name = message.split(' ')[:2]
-        storage[alias] = name
+        alias, name = message.split(' ')[:2]        
+        timeout_eval('set', (alias, env[name]))
         env[alias] = env[name]        
+        storage[alias] = name
         reply = f'已定义别名{alias} = {name}'
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
@@ -354,6 +379,7 @@ def init_xdef(yiri: BotYiri):
         storage = yiri.get_storage('xdef_alias')
         if storage.remove(name):
             reply = f'已移除宏别名{name}。'
+            timeout_eval('pop', name)
             env.pop(name, None)
         else:
             reply = f'未找到宏别名{name}。'
@@ -409,7 +435,7 @@ def init_redef(yiri: BotYiri):
                 reply = "语法错误！"
             else:
                 args = map(lambda t: t[0](t[1]), zip(types, match.groups()))
-                reply = str(timeout_eval((name, args), timeout=TIMEOUT))
+                reply = str(timeout_eval('call', (name, args)))
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
     
