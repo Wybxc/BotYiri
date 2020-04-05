@@ -8,13 +8,11 @@ from typing import Set, Union
 from multiprocess import Process, Manager, Pipe  # pylint: disable=no-name-in-module
 from aiocqhttp.event import Event
 from bot import BotYiri
-from .functions import builtins, CalculateError
+from .functions import builtin_marcos, CalculateError
 
 ENABLED = True
 
-TIMEOUT = 3
-
-marcos = None
+TIMEOUT = 1.75
 
 env = None
 
@@ -26,61 +24,57 @@ pipe_main, pipe_eval = None, None
 
 
 def set_eval_environment():
-    global env, marcos, regexes, pipe_main, pipe_eval
-    env = {k: v for k, v in math.__dict__.items() if '_' not in k}
-    env['pow'] = None  # math.pow 不如内置的 pow 高级
-    env.update({
-        '__builtins__': {
-            'abs': abs,
-            'all': all,
-            'any': any,
-            'ascii': ascii,
-            'bin': bin,
-            'bool': bool,
-            'bytearray': bytearray,
-            'bytes': bytes,
-            'callable': callable,
-            'chr': chr,
-            'complex': complex,
-            'dict': dict,
-            'dir': dir,
-            'divmod': divmod,
-            'enumerate': enumerate,
-            'filter': filter,
-            'float': float,
-            'format': format,
-            'frozenset': frozenset,
-            'hash': hash,
-            'hex': hex,
-            'int': int,
-            'isinstance': isinstance,
-            'issubclass': issubclass,
-            'iter': iter,
-            'len': len,
-            'list': list,
-            'map': map,
-            'max': max,
-            'min': min,
-            'next': next,
-            'oct': oct,
-            'ord': ord,
-            'pow': pow,
-            'range': range,
-            'repr': repr,
-            'reversed': reversed,
-            'round': round,
-            'set': set,
-            'slice': slice,
-            'sorted': sorted,
-            'str': str,
-            'sum': sum,
-            'tuple': tuple,
-            'zip': zip
-        },
+    global env, regexes, pipe_main, pipe_eval
+    env = {'__builtins__': {k: v for k, v in math.__dict__.items() if '_' not in k}}    
+    env['__builtins__'].update({        
+        'abs': abs,
+        'all': all,
+        'any': any,
+        'ascii': ascii,
+        'bin': bin,
+        'bool': bool,
+        'bytearray': bytearray,
+        'bytes': bytes,
+        'callable': callable,
+        'chr': chr,
+        'complex': complex,
+        'dict': dict,
+        'dir': dir,
+        'divmod': divmod,
+        'enumerate': enumerate,
+        'filter': filter,
+        'float': float,
+        'format': format,
+        'frozenset': frozenset,
+        'hash': hash,
+        'hex': hex,
+        'int': int,
+        'isinstance': isinstance,
+        'issubclass': issubclass,
+        'iter': iter,
+        'len': len,
+        'list': list,
+        'map': map,
+        'max': max,
+        'min': min,
+        'next': next,
+        'oct': oct,
+        'ord': ord,
+        'pow': pow,
+        'range': range,
+        'repr': repr,
+        'reversed': reversed,
+        'round': round,
+        'set': set,
+        'slice': slice,
+        'sorted': sorted,
+        'str': str,
+        'sum': sum,
+        'tuple': tuple,
+        'zip': zip,        
     })
-    env.update(builtins)
+    env.update(builtin_marcos)
     env = Manager().dict(env)
-    marcos = {}
     regexes = {}
     pipe_main, pipe_eval = Pipe(duplex=True)
 
@@ -136,7 +130,7 @@ def timeout_eval(code: Union[str, tuple], timeout=2):
 
 
 def calc(s, timeout=2):
-    env.update(marcos)
+    start_time = time.time()
     try:
         ast_expr = ast.parse(s, mode='eval')
     except SyntaxError as e:
@@ -166,6 +160,8 @@ def calc(s, timeout=2):
         return e.err_msg
     except TimeoutError as e:
         return str(e)
+    end_time = time.time()
+    print(f'计算耗时：{end_time-start_time}')
     return result
 
 
@@ -254,12 +250,15 @@ def init_calc(yiri: BotYiri):
 
 def init_xdef(yiri: BotYiri):
     # pylint: disable=unused-variable
+    marcos = {}
     for name, code in yiri.get_storage('xdef').items():
         func = calc(code, timeout=TIMEOUT)
         marcos[name] = func
 
     for alias, name in yiri.get_storage('xdef_alias').items():
         marcos[alias] = marcos[name]
+
+    env.update(marcos)
 
     @yiri.msg_preprocessor()
     async def xdef_pre(message: str, flags: Set[str], context: Event):
@@ -298,7 +297,7 @@ def init_xdef(yiri: BotYiri):
             reply = func
             print(reply)
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-        marcos[name] = func
+        env[name] = func
         storage[name] = code
         reply = f'已添加宏定义{name} := {code}'
         print(reply)
@@ -312,7 +311,7 @@ def init_xdef(yiri: BotYiri):
             alias = yiri.get_storage('xdef_alias').remove_by_value(name)
             if alias:
                 for al in alias:
-                    marcos.pop(al, None)
+                    env.pop(al, None)
                 alias = ', '.join(alias)
                 reply += f'，及其别名{alias}'
             red = yiri.get_storage('redef').remove(name)
@@ -321,7 +320,7 @@ def init_xdef(yiri: BotYiri):
                 alias = ', '.join(alias)
                 reply += f'，及其模板'
             reply += '。'
-            marcos.pop(name, None)
+            env.pop(name, None)
         else:
             reply = f'未找到宏定义{name}！'
         print(reply)
@@ -344,7 +343,7 @@ def init_xdef(yiri: BotYiri):
         storage = yiri.get_storage('xdef_alias')
         alias, name = message.split(' ')[:2]
         storage[alias] = name
-        marcos[alias] = marcos[name]
+        env[alias] = env[name]        
         reply = f'已定义别名{alias} = {name}'
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
@@ -355,7 +354,7 @@ def init_xdef(yiri: BotYiri):
         storage = yiri.get_storage('xdef_alias')
         if storage.remove(name):
             reply = f'已移除宏别名{name}。'
-            marcos.pop(name, None)
+            env.pop(name, None)
         else:
             reply = f'未找到宏别名{name}。'
         print(reply)
@@ -405,12 +404,10 @@ def init_redef(yiri: BotYiri):
             reply = f"未找到宏{name}的模板！"
         else:
             regex, types = regexes[name]
-            print(regex, types)
             match = re.match(regex, scan)
             if not match:
                 reply = "语法错误！"
             else:
-                env.update(marcos)
                 args = map(lambda t: t[0](t[1]), zip(types, match.groups()))
                 reply = str(timeout_eval((name, args), timeout=TIMEOUT))
         print(reply)
@@ -426,7 +423,6 @@ def init_redef(yiri: BotYiri):
             print(reply)
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
         name, template = slices
-        env.update(marcos)
         if env.get(name, None):
             template = template.strip()
             regex, types = parse_redef(template)

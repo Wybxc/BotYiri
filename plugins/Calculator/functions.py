@@ -47,7 +47,7 @@ def join(split, l):
     l = map(str, l)
     return split.join(l)
 
-builtins = {
+builtin_marcos = {
     'dice': dice, 
     'd': dice,
     'dicem': dicem,
