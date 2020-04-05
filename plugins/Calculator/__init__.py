@@ -12,7 +12,7 @@ from .functions import builtins, CalculateError
 
 ENABLED = True
 
-TIMEOUT = 2
+TIMEOUT = 3
 
 marcos = None
 
@@ -108,9 +108,12 @@ class EvalProcess(Process):  # pylint: disable=inherit-non-class
 
 
 def restart_eval_process():
-    global eval_process
+    global eval_process, pipe_eval, pipe_main
     if eval_process and eval_process.is_alive():
         eval_process.terminate()
+        pipe_eval.close()
+        pipe_main.close()
+        pipe_main, pipe_eval = Pipe(duplex=True)
         print('超时，重启计算进程中……')
     # pylint: disable=not-callable, attribute-defined-outside-init
     eval_process = EvalProcess(pipe_eval, env)
@@ -311,9 +314,13 @@ def init_xdef(yiri: BotYiri):
                 for al in alias:
                     marcos.pop(al, None)
                 alias = ', '.join(alias)
-                reply += f'，及其别名{alias}。'
-            else:
-                reply += '。'
+                reply += f'，及其别名{alias}'
+            red = yiri.get_storage('redef').remove(name)
+            if red:   
+                regexes.pop(name, None)
+                alias = ', '.join(alias)
+                reply += f'，及其模板'
+            reply += '。'
             marcos.pop(name, None)
         else:
             reply = f'未找到宏定义{name}！'
