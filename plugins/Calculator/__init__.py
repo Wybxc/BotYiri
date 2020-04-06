@@ -15,6 +15,8 @@ ENABLED = True
 
 TIMEOUT = 2
 
+_yiri = None
+
 env = None
 
 regexes = None
@@ -133,6 +135,7 @@ def restart_eval_process():
     eval_process.deamon = True
     eval_process.start()
     timeout_eval('update', env, timeout=60)
+    reload_all_marcos_and_aliases(_yiri)
 
 
 def timeout_eval(op: str, code: Union[str, tuple, dict], timeout=-1):
@@ -191,6 +194,14 @@ def calc(s):
     end_time = time.time()
     print(f'计算耗时：{end_time-start_time}')
     return result
+
+
+def reload_all_marcos_and_aliases(yiri: BotYiri):
+    for name, code in yiri.get_storage('xdef').items():
+        env[name] = timeout_eval('xdef', (name, code), timeout=60)
+
+    for alias, name in yiri.get_storage('xdef_alias').items():
+        env[alias] = timeout_eval('alias', (alias, name))
 
 
 def parse_xdef(slices):
@@ -280,11 +291,7 @@ def init_calc(yiri: BotYiri):
 
 def init_xdef(yiri: BotYiri):
     # pylint: disable=unused-variable
-    for name, code in yiri.get_storage('xdef').items():
-        env[name] = timeout_eval('xdef', (name, code), timeout=60)        
-    
-    for alias, name in yiri.get_storage('xdef_alias').items():
-        env[alias] = timeout_eval('alias', (alias, name))
+    reload_all_marcos_and_aliases(yiri)
 
     @yiri.msg_preprocessor()
     async def xdef_pre(message: str, flags: Set[str], context: Event):
@@ -323,7 +330,7 @@ def init_xdef(yiri: BotYiri):
         try:
             check_safe_expression(code)
             func = timeout_eval('xdef', (name, code))
-        except Exception as e: # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             reply = str(e)
             print(reply)
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
@@ -447,7 +454,7 @@ def init_redef(yiri: BotYiri):
                 args = map(lambda t: t[0](t[1]), zip(types, match.groups()))
                 try:
                     reply = str(timeout_eval('call', (name, args)))
-                except Exception as e: # pylint: disable=broad-except
+                except Exception as e:  # pylint: disable=broad-except
                     reply = str(e)
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
@@ -495,6 +502,8 @@ def init_redef(yiri: BotYiri):
 
 
 def init(yiri: BotYiri):
+    global _yiri
+    _yiri = yiri
     set_eval_environment()
     init_calc(yiri)
     init_xdef(yiri)
