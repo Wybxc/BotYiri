@@ -114,6 +114,7 @@ class EvalProcess(Process):  # pylint: disable=inherit-non-class
                 elif op == 'alias':
                     alias, name = code
                     self.environment[alias] = self.environment[name]
+                    result = self.environment[alias]
                 elif op == 'pop':
                     result = self.environment.pop(code, None)
             except Exception as e:
@@ -280,13 +281,10 @@ def init_calc(yiri: BotYiri):
 def init_xdef(yiri: BotYiri):
     # pylint: disable=unused-variable
     for name, code in yiri.get_storage('xdef').items():
-        env[name] = timeout_eval('xdef', (name, code), timeout=60)
-
-    marcos_alias = {}
+        env[name] = timeout_eval('xdef', (name, code), timeout=60)        
+    
     for alias, name in yiri.get_storage('xdef_alias').items():
-        marcos_alias[alias] = env[name]
-    env.update(marcos_alias)
-    timeout_eval('update', marcos_alias, timeout=60)
+        env[alias] = timeout_eval('alias', (alias, name))
 
     @yiri.msg_preprocessor()
     async def xdef_pre(message: str, flags: Set[str], context: Event):
@@ -447,7 +445,10 @@ def init_redef(yiri: BotYiri):
                 reply = "语法错误！"
             else:
                 args = map(lambda t: t[0](t[1]), zip(types, match.groups()))
-                reply = str(timeout_eval('call', (name, args)))
+                try:
+                    reply = str(timeout_eval('call', (name, args)))
+                except Exception as e: # pylint: disable=broad-except
+                    reply = str(e)
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
