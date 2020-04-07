@@ -80,10 +80,11 @@ def get_default_environment():
     return m_env
 
 
-def set_eval_environment():
+async def set_eval_environment():
     global env, regexes, pipe_eval_main, pipe_eval_sub
     pipe_eval_main, pipe_eval_sub = Pipe(duplex=True)
     env = get_default_environment()
+    await reload_all_marcos_and_aliases(_yiri)
     regexes = {}
 
 
@@ -529,7 +530,7 @@ async def init_redef(yiri: BotYiri):
 async def init(yiri: BotYiri):
     global _yiri
     _yiri = yiri
-    set_eval_environment()
+    await set_eval_environment()
     await init_calc(yiri)
     await init_xdef(yiri)
     await init_redef(yiri)
