@@ -1,4 +1,5 @@
 import re
+import asyncio
 import argparse
 import random
 import time
@@ -124,7 +125,7 @@ if __name__ == '__main__':
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     # 加载插件
-    plugins.load_plugins(yiri)
+    asyncio.run(plugins.load_plugins(yiri))
 
     # 处理对话
     init()
