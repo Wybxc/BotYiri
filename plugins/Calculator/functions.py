@@ -47,6 +47,9 @@ def join(split, l):
     l = map(str, l)
     return split.join(l)
 
+def strip(s):
+    return str(s).strip()
+
 builtin_marcos = {
     'dice': dice, 
     'd': dice,
@@ -57,4 +60,5 @@ builtin_marcos = {
     'randn': randn,
     'rn': randn,
     'join': join,
+    'strip': strip
 }    

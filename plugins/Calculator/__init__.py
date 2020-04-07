@@ -322,6 +322,8 @@ async def init_xdef(yiri: BotYiri):
     @yiri.msg_preprocessor()
     async def xdef_pre(message: str, flags: Set[str], context: Event):
         if message[:2] == '.x':
+            if len(message) <= 2:
+                return message, flags
             if message[2] == 'r':
                 flags.add('.xdef_remove')
                 message = message[3:].strip()
@@ -445,6 +447,8 @@ async def init_redef(yiri: BotYiri):
     @yiri.msg_preprocessor()
     async def redef_pre(message: str, flags: Set[str], context: Event):
         if message[:2] == '.r':
+            if len(message) <= 2:
+                return message, flags
             if message[2] == 'r':
                 flags.add('.redef_remove')
                 message = message[3:].strip()
