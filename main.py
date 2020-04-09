@@ -9,6 +9,7 @@ from aiocqhttp.event import Event
 from bot import BotYiri
 import plugins
 from core_seq2seq.core import init, Chatter
+import operators
 
 if __name__ == '__main__':
     arg = argparse.ArgumentParser()
@@ -43,6 +44,7 @@ if __name__ == '__main__':
             flags.add('at_me')
         return message, flags
 
+    operators.register_op_commands(yiri)
 
     # 去除 CQ码
     @yiri.msg_preprocessor()

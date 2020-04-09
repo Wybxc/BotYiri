@@ -14,7 +14,7 @@ class mongoCollectionWrapper():
     def __setitem__(self, index, value):
         if not self._collection.find_one_and_replace({'name': index}, {'name': index, 'value': value}):
             self._collection.insert_one({'name': index, 'value': value})
-            self._dict[index] = value
+        self._dict[index] = value
     
     def remove(self, index):
         self._collection.find_one_and_delete({'name': index})

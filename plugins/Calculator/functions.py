@@ -1,11 +1,5 @@
 import random
 
-class CalculateError(Exception):
-    def __init__(self, msg):
-        super(CalculateError, self).__init__()
-        self.err_msg = msg
-
-
 def iint(n, minimal=1):
     if isinstance(n, float):
         n = int(n)
@@ -26,7 +20,7 @@ def dice(n):
 
 def dicem(count, n):
     if count > 100:
-        raise CalculateError('数量过大！')
+        raise RuntimeError('数量过大！')
     dices = [dice(n) for _ in range(iint(count))]
     return f"{'+'.join([str(i) for i in dices])}={sum(dices)}"
 

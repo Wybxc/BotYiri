@@ -118,3 +118,13 @@ class BotYiri(CQHttp):
 
     def get_storage(self, name):
         return self._mongo[name]
+    
+    def require(self, requirement):
+        def decorator(func):
+            async def decorated(message, flags, context):
+                acquired = requirement(self, message, flags, context)
+                if acquired:
+                    return acquired
+                return await func(message, flags, context)
+            return decorated
+        return decorator

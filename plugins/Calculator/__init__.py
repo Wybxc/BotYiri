@@ -9,7 +9,8 @@ from multiprocessing import Process, Pipe  # pylint: disable=no-name-in-module
 import dill
 from aiocqhttp.event import Event
 from bot import BotYiri
-from .functions import builtin_marcos, CalculateError
+from operators import op
+from .functions import builtin_marcos
 
 ENABLED = True
 
@@ -96,27 +97,27 @@ class EvalProcess(Process):  # pylint: disable=inherit-non-class
 
     def execute(self, pipe):
         # pylint: disable=eval-used, broad-except
-        op, code = pipe.recv()
+        operate, code = pipe.recv()
         code = dill.loads(code)
         result, error = None, None
         try:
-            if op == 'eval':
+            if operate == 'eval':
                 result = eval(code, self.environment, {})
-            elif op == 'call':
+            elif operate == 'call':
                 name, args = code
                 result = self.environment[name](*args)
-            elif op == 'update':
+            elif operate == 'update':
                 self.environment.update(code)
                 result = 0
-            elif op == 'xdef':
+            elif operate == 'xdef':
                 name, value = code
                 self.environment[name] = eval(value, self.environment, {})
                 result = self.environment[name]
-            elif op == 'alias':
+            elif operate == 'alias':
                 alias, name = code
                 self.environment[alias] = self.environment[name]
                 result = self.environment[alias]
-            elif op == 'pop':
+            elif operate == 'pop':
                 result = self.environment.pop(code, None)
         except Exception as e:
             error = e
@@ -155,11 +156,11 @@ class ClearPipe():
             self.p1.send(message)
 
 
-async def timeout_eval(op: str, code: Union[str, tuple, dict], timeout=-1):
+async def timeout_eval(operate: str, code: Union[str, tuple, dict], timeout=-1):
     if not eval_process:
         await restart_eval_process()
     code = dill.dumps(code)
-    pipe_eval_main.send((op, code))
+    pipe_eval_main.send((operate, code))
     timeout = TIMEOUT if timeout < 0 else timeout
     await asyncio.sleep(0)
     if pipe_eval_main.poll(timeout=timeout):
@@ -205,8 +206,8 @@ async def calc(s):
         return str(e)
     except NameError as e:
         return str(e)
-    except CalculateError as e:
-        return e.err_msg
+    except RuntimeError as e:
+        return str(e)
     except TimeoutError as e:
         return str(e)
     end_time = time.time()
@@ -345,6 +346,7 @@ async def init_xdef(yiri: BotYiri):
         return message, flags
 
     @yiri.msg_handler('.xdef')
+    @yiri.require(op())
     async def xdef(message: str, flags: Set[str], context: Event):
         slices = message.split(' ')
         storage = yiri.get_storage('xdef')
@@ -369,6 +371,7 @@ async def init_xdef(yiri: BotYiri):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     @yiri.msg_handler('.xdef_remove')
+    @yiri.require(op(5))
     async def xdef_remove(message: str, flags: Set[str], context: Event):
         name = message
         if yiri.get_storage('xdef').remove(name):
@@ -406,6 +409,7 @@ async def init_xdef(yiri: BotYiri):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     @yiri.msg_handler('.xdef_alias')
+    @yiri.require(op())
     async def xdef_alias(message: str, flags: Set[str], context: Event):
         storage = yiri.get_storage('xdef_alias')
         alias, name = message.split(' ')[:2]
@@ -417,6 +421,7 @@ async def init_xdef(yiri: BotYiri):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     @yiri.msg_handler('.xdef_alias_remove')
+    @yiri.require(op(5))
     async def xdef_alias_remove(message: str, flags: Set[str], context: Event):
         name = message
         storage = yiri.get_storage('xdef_alias')
@@ -490,6 +495,7 @@ async def init_redef(yiri: BotYiri):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     @yiri.msg_handler('.redef_define')
+    @yiri.require(op())
     async def redef_define(message: str, flags: Set[str], context: Event):
         storage = yiri.get_storage('redef')
         slices = message.split(' ', maxsplit=1)
@@ -510,6 +516,7 @@ async def init_redef(yiri: BotYiri):
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     @yiri.msg_handler('.redef_remove')
+    @yiri.require(op(5))
     async def redef_remove(message: str, flags: Set[str], context: Event):
         name = message
         storage = yiri.get_storage('redef')
