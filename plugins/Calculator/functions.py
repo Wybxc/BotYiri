@@ -1,4 +1,6 @@
 import random
+import functools
+
 
 def iint(n, minimal=1):
     if isinstance(n, float):
@@ -7,6 +9,7 @@ def iint(n, minimal=1):
         n = minimal
     return n
 
+
 def ifloat(x, minimal=0.0):
     if isinstance(x, int):
         x = float(x)
@@ -14,15 +17,18 @@ def ifloat(x, minimal=0.0):
         x = minimal
     return x
 
+
 def dice(n):
     n = iint(n)
     return random.randint(1, n)
+
 
 def dicem(count, n):
     if count > 100:
         raise RuntimeError('数量过大！')
     dices = [dice(n) for _ in range(iint(count))]
     return f"{'+'.join([str(i) for i in dices])}={sum(dices)}"
+
 
 def rand(*args):
     if len(args) == 0:
@@ -32,20 +38,24 @@ def rand(*args):
     else:
         return random.uniform(*args)
 
+
 def randn(mu=0.5, sigma=0.5):
     mu = ifloat(mu)
     sigma = ifloat(sigma)
     return random.normalvariate(mu, sigma)
 
+
 def join(split, l):
     l = map(str, l)
     return split.join(l)
 
+
 def strip(s):
     return str(s).strip()
 
+
 builtin_marcos = {
-    'dice': dice, 
+    'dice': dice,
     'd': dice,
     'dicem': dicem,
     'dm': dicem,
@@ -54,5 +64,6 @@ builtin_marcos = {
     'randn': randn,
     'rn': randn,
     'join': join,
-    'strip': strip
-}    
+    'strip': strip,
+    'reduce': functools.reduce,
+}

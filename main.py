@@ -14,7 +14,8 @@ import operators
 if __name__ == '__main__':
     arg = argparse.ArgumentParser()
     arg.add_argument('-n', '--name', type=str, help='机器人的名字。')
-    arg.add_argument('-t', '--token', type=str, help='连接 CoolQ Http API 的 access_token。')
+    arg.add_argument('-t', '--token', type=str,
+                     help='连接 CoolQ Http API 的 access_token。')
     arg.add_argument('-p', '--port', type=int, help='反向 Websocket 的端口号。')
     args = arg.parse_args()
     yiri = BotYiri(name=args.name, access_token=args.token)
@@ -34,7 +35,6 @@ if __name__ == '__main__':
         }
         messageCollection.insert_one(message)
 
-
     # 处理 @ 消息
     @yiri.msg_preprocessor('group', 'discuss')
     async def at_me(message: str, flags: Set[str], context: Event):
@@ -51,7 +51,6 @@ if __name__ == '__main__':
     async def remove_cq_code(message: str, flags: Set[str], context: Event):
         return re.sub(r'\[.*?\]', '', message).strip(), flags
 
-
     # 处理.d骰子
     @yiri.msg_preprocessor()
     async def dice_command(message: str, flags: Set[str], context: Event):
@@ -61,7 +60,6 @@ if __name__ == '__main__':
                 message = '1'
             flags.add('.dice')
         return message, flags
-
 
     # 关闭对话机制
     @yiri.msg_preprocessor('group')
@@ -84,13 +82,11 @@ if __name__ == '__main__':
             else:
                 return '爱卿平身。', yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
-
     # 处理踢人
     @yiri.msg_handler('at_me')
     async def kick_sender(message: str, flags: Set[str], context: Event):
         if message == '请踢断我的肋骨吧！':
             return '马上安排', yiri.SEND_MESSAGE | yiri.BREAK_OUT | yiri.KICK_OUT
-
 
     # 萌即正义！
     @yiri.msg_handler('at_me')
@@ -104,7 +100,6 @@ if __name__ == '__main__':
                 reply = '同一时刻只能有一人开启「萌即正义」模式。'
                 return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
-
     # 处理.d骰子
     @yiri.msg_handler('.dice')
     async def dice(message: str, flags: Set[str], context: Event):
@@ -116,7 +111,6 @@ if __name__ == '__main__':
         reply = f'这是怡姐，不是骰子。（说完还是很诚实地摇了{rnd}点）'
         print(reply)
         return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
-
 
     # 关闭对话机制
     @yiri.msg_handler('.关闭对话')
@@ -154,4 +148,3 @@ if __name__ == '__main__':
             return reply, yiri.SEND_MESSAGE | yiri.BREAK_OUT
 
     yiri.run(host='127.0.0.1', port=args.port)
-    

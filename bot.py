@@ -48,15 +48,15 @@ class BotYiri(CQHttp):
             for preprocessor, uflags in self._msg_preprocessors:
                 dotflags = {flag for flag in flags if flag[0] == '.'}
                 if (not uflags and flags - dotflags) or flags & uflags or ('.' in uflags and dotflags):
-                # 忽略掉上一行的可读性为0的代码，以下是人话版本
-                # do_action = False
-                # if uflags为空:
-                #     do_action = flags包含非.开头的内容
-                # elif flags与uflags存在交集:
-                #     do_action = True
-                # elif uflags包含'.'并且flags包含.开头的内容
-                #     do_action = True
-                # if do_action:
+                    # 忽略掉上一行的可读性为0的代码，以下是人话版本
+                    # do_action = False
+                    # if uflags为空:
+                    #     do_action = flags包含非.开头的内容
+                    # elif flags与uflags存在交集:
+                    #     do_action = True
+                    # elif uflags包含'.'并且flags包含.开头的内容
+                    #     do_action = True
+                    # if do_action:
                     message, flags = await preprocessor(message, flags, context)
             report_args = {}
             dotflags = {flag for flag in flags if flag[0] == '.'}
@@ -118,7 +118,7 @@ class BotYiri(CQHttp):
 
     def get_storage(self, name):
         return self._mongo[name]
-    
+
     def require(self, requirement):
         def decorator(func):
             async def decorated(message, flags, context):

@@ -64,13 +64,14 @@ def register_op_commands(yiri: BotYiri):
         if message[:2] == '.o':
             if len(message) <= 2:
                 return message, flags
-            message = re.sub(r'\[CQ:at,qq=(\d+)\]', lambda x: x.groups()[0], message)
+            message = re.sub(r'\[CQ:at,qq=(\d+)\]',
+                             lambda x: x.groups()[0], message)
             if message[2] == 'r':
                 flags.add('.op_remove')
                 message = message[3:].strip()
                 return message, flags
             flags.add('.op_add')
-            message = message[2:].strip()            
+            message = message[2:].strip()
         return message, flags
 
     parser = argparse.ArgumentParser()
@@ -123,7 +124,7 @@ def register_op_commands(yiri: BotYiri):
 
     @yiri.msg_handler('.op_remove')
     @yiri.require(op())
-    async def op_remove(message: str, flags: Set[str], context: Event):        
+    async def op_remove(message: str, flags: Set[str], context: Event):
         qqid = int(message)
         level, _, _ = get_op_info(yiri, context.user_id)
         n_level, _, _ = get_op_info(yiri, qqid)

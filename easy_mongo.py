@@ -7,18 +7,18 @@ class mongoCollectionWrapper():
         self._dict = {}
         for pair in self._collection.find({'name': {'$exists': True}, 'value': {'$exists': True}}):
             self._dict[pair['name']] = pair['value']
-    
-    def __getitem__(self, index):        
+
+    def __getitem__(self, index):
         return self._dict[index]
 
     def __setitem__(self, index, value):
         if not self._collection.find_one_and_replace({'name': index}, {'name': index, 'value': value}):
             self._collection.insert_one({'name': index, 'value': value})
         self._dict[index] = value
-    
+
     def remove(self, index):
         self._collection.find_one_and_delete({'name': index})
-        return self._dict.pop(index, None)        
+        return self._dict.pop(index, None)
 
     def remove_by_value(self, value):
         node = self._collection.find_one_and_delete({'value': value})
@@ -40,7 +40,7 @@ class mongoCollectionWrapper():
 
     def __repr__(self):
         return repr(self._dict)
-    
+
     def __str__(self):
         return str(self._dict)
 
@@ -53,5 +53,6 @@ class easyMongo():
 
     def __getitem__(self, index):
         if not self._wrappers.get(index):
-            self._wrappers[index] = mongoCollectionWrapper(self._messageDB[index])
+            self._wrappers[index] = mongoCollectionWrapper(
+                self._messageDB[index])
         return self._wrappers[index]
